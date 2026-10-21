@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>スプラ3 戦績アプリ</title>
+<style>
+:root {
+  --navy: #1F2A44; --slate: #5B6678; --ink: #1F2937; --muted: #6B7280; --line: #D5DAE1; --bg: #F3F5F9;
+  --card: #FFFFFF; --soft: #F1F3F6; --gold: #FACC15; --gold-bg: #FEF3C7; --win: #93C5FD; --win-bg: #DCE9FF;
+  --lose: #FCA5A5; --lose-bg: #FFE1E1; --refl: #C4B5FD; --refl-bg: #EDE9FE; --ok: #15803D; --warn: #B45309; --err: #B91C1C;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-size: 14px;
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "游ゴシック", system-ui, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+header { position: sticky; top: 0; z-index: 20; background: var(--navy); color: #fff; display: flex; align-items: center;
+  gap: 18px; padding: 0 18px; height: 50px; }
+header h1 { font-size: 17px; margin: 0; white-space: nowrap; }
+nav { display: flex; gap: 4px; }
+nav button { background: transparent; border: 0; color: #C9D2E3; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+nav button[aria-selected="true"] { background: rgba(255,255,255,.14); color: #fff; }
+#saveStatus { margin-left: auto; font-size: 12px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+#saveStatus .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+#saveStatus button { font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 1px solid #fff; background: #fff; color: var(--navy); cursor: pointer; }
+#banner { background: #FFF7E6; border-bottom: 1px solid #F5D9A8; color: #7C4A03; padding: 10px 18px; display: flex; gap: 12px; align-items: center; }
+#banner[hidden] { display: none; }
+#banner button { padding: 6px 14px; border-radius: 8px; border: 0; background: var(--warn); color: #fff; font-weight: 700; cursor: pointer; }
+main { max-width: 1320px; margin: 0 auto; padding: 18px; }
+section[hidden] { display: none; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+.card h2 { font-size: 15px; margin: 0 0 12px; color: var(--navy); }
+.muted { color: var(--muted); font-size: 12px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 16px; align-items: start; }
+@media (max-width: 1050px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* 入力 */
+.frow { display: grid; grid-template-columns: 110px 1fr; gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px dashed #E8EBF0; }
+.frow:last-of-type { border-bottom: 0; }
+.frow > label, .frow > .lab { font-weight: 700; color: var(--navy); }
+.frow .sub { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.btns.g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tb { border: 1px solid #CBD5E1; background: var(--soft); border-radius: 9px; padding: 8px 10px; cursor: pointer; min-height: 38px;
+  line-height: 1.2; transition: background .1s; }
+.tb:hover { background: #E7EBF1; }
+.tb[aria-pressed="true"] { border: 2px solid #1F2937; padding: 7px 9px; font-weight: 700; }
+.tb.rule[aria-pressed="true"] { color: #fff; }
+.tb.win[aria-pressed="true"] { background: var(--win); }
+.tb.lose[aria-pressed="true"] { background: var(--lose); }
+.tb.ko[aria-pressed="true"], .tb.cb[aria-pressed="true"] { background: #FDBA74; }
+.tb.gold[aria-pressed="true"] { background: var(--gold); }
+.tb.refl[aria-pressed="true"] { background: var(--refl); }
+.tb.good[aria-pressed="true"] { background: #86EFAC; }
+.tb.xpn { color: #B91C1C; min-width: 54px; } .tb.xpp { color: #1F7A4D; min-width: 54px; }
+.tb.xpn[aria-pressed="true"] { background: #FCA5A5; color: #7F1D1D; } .tb.xpp[aria-pressed="true"] { background: #86EFAC; color: #14532D; }
+.tb.acc[aria-pressed="true"] { background: #CBD5E1; }
+.glab { font-size: 11px; color: var(--muted); font-weight: 700; margin: 2px 0 4px; }
+.glab:not(:first-child) { margin-top: 8px; }
+.tb.small { min-height: 30px; padding: 4px 10px; font-size: 13px; }
+.sep { width: 1px; background: var(--line); margin: 0 6px; }
+input[type=number], input[type=text], input[type=datetime-local], select, textarea { border: 1px solid #94A3B8; border-radius: 8px;
+  padding: 7px 9px; background: #fff; min-height: 36px; }
+input[type=number] { width: 110px; text-align: center; }
+textarea { width: 100%; min-height: 64px; resize: vertical; }
+.inline { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.actions { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+.primary { background: var(--navy); color: #fff; border: 0; border-radius: 10px; padding: 12px 34px; font-size: 17px; font-weight: 700; cursor: pointer; }
+.primary:hover { background: #2B3A5E; }
+.secondary { background: #fff; border: 1px solid #94A3B8; border-radius: 10px; padding: 10px 18px; cursor: pointer; font-weight: 600; }
+.danger { background: #fff; border: 1px solid #FCA5A5; color: var(--err); border-radius: 10px; padding: 9px 16px; cursor: pointer; }
+.danger:hover, .secondary:hover { background: #F8FAFC; }
+#status { min-height: 22px; margin-top: 10px; font-weight: 700; }
+#status.ok { color: var(--ok); } #status.err { color: var(--err); } #status.warn { color: var(--warn); }
+.kv { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.kv div { background: #EEF2F7; border-radius: 10px; padding: 8px 12px; }
+.kv .k { font-size: 11px; color: var(--muted); font-weight: 700; }
+.kv .v { font-size: 19px; font-weight: 700; margin-top: 2px; white-space: nowrap; }
+#iNow { font-size: 16px; }
+#recentTable { font-size: 12px; }
+#recentTable td, #recentTable th { padding: 4px 5px; white-space: nowrap; }
+#recentTable td.st { max-width: 96px; overflow: hidden; text-overflow: ellipsis; }
+#recentTable td.res { white-space: normal; line-height: 1.25; min-width: 44px; }
+#recentTable .mk { display: inline-block; font-size: 9px; font-weight: 700; border-radius: 4px; padding: 0 3px; margin-left: 2px; background: #FFEDD5; color: #9A3412; }
+#recentTable .mk.acc { background: #E2E8F0; color: #334155; }
+.kv .wide { grid-column: span 2; }
+
+/* 表 */
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { background: var(--navy); color: #fff; font-weight: 700; padding: 6px 7px; white-space: nowrap; }
+th.sl { background: var(--slate); }
+td { border-bottom: 1px solid #E5E7EB; padding: 5px 7px; vertical-align: middle; }
+td.c, th.c { text-align: center; } td.r { text-align: right; } td.nw { white-space: nowrap; }
+tbody tr:hover td { background: #FAFBFD; }
+.win { color: #1D4ED8; font-weight: 700; } .lose { color: #B91C1C; font-weight: 700; }
+td.win { background: var(--win-bg); } td.lose { background: var(--lose-bg); }
+.chip { display: inline-block; border-radius: 6px; padding: 1px 6px; margin: 1px 2px 1px 0; font-size: 11px; white-space: nowrap; }
+.chip.g { background: var(--gold-bg); color: #6B4E00; } .chip.r { background: var(--refl-bg); color: #5B21B6; }
+.chip.k { background: #FFEDD5; color: #9A3412; }
+.chip.ok { background: #DCFCE7; color: #166534; } .chip.old { background: #F1F5F9; color: #475569; } .chip.acc { background: #E2E8F0; color: #334155; }
+.pos { color: #1F7A4D; font-weight: 700; } .neg { color: #C0392B; font-weight: 700; }
+.tablewrap { overflow-x: auto; }
+#logTable { min-width: 1280px; }
+#logTable td.nw2 { white-space: nowrap; }
+.rulename { font-weight: 700; }
+.linkbtn { background: none; border: 0; color: #2F6FDE; cursor: pointer; padding: 2px 4px; font-size: 12px; }
+.linkbtn.del { color: var(--err); }
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.filters label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); font-weight: 700; }
+.strip { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+.strip > div { background: #F6F8FB; border: 1px solid #E5E7EB; border-radius: 9px; padding: 6px 12px; min-width: 88px; }
+.strip .k { font-size: 11px; color: var(--muted); } .strip .v { font-size: 16px; font-weight: 700; }
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 900px) { .charts { grid-template-columns: 1fr; } }
+.chart { border: 1px solid #E5E7EB; border-radius: 10px; padding: 8px 8px 2px; }
+.chart h3 { margin: 2px 6px 4px; font-size: 13px; }
+.chart svg { width: 100%; height: auto; display: block; }
+.empty { color: var(--muted); padding: 30px; text-align: center; }
+.hint { font-size: 12px; color: var(--muted); }
+dialog { border: 0; border-radius: 14px; padding: 0; width: min(760px, 95vw); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+dialog::backdrop { background: rgba(15,23,42,.45); }
+dialog .dh { background: var(--navy); color: #fff; padding: 12px 18px; font-weight: 700; }
+dialog .db { padding: 14px 18px; max-height: 70vh; overflow: auto; }
+dialog .df { padding: 12px 18px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--line); }
+.egrid { display: grid; grid-template-columns: 120px 1fr; gap: 8px 12px; align-items: center; }
+.egrid .checks { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.first { max-width: 620px; margin: 60px auto; text-align: center; }
+.first .actions { justify-content: center; }
+.first-warn { font-size: 14px; font-weight: 600; color: var(--err); }
+.help p { line-height: 1.8; margin: 6px 0; }
+.help h3 { font-size: 14px; color: var(--navy); margin: 18px 0 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>スプラトゥーン3 戦績</h1>
+  <nav id="tabs" role="tablist">
+    <button data-tab="input" aria-selected="true">入力</button>
+    <button data-tab="log">記録</button>
+    <button data-tab="summary">集計</button>
+    <button data-tab="settings">設定</button>
+    <button data-tab="help">使い方</button>
+  </nav>
+  <div id="saveStatus"></div>
+</header>
+<div id="banner" hidden></div>
+<main>
+  <section id="tab-first" hidden>
+    <div class="card first">
+      <h2>はじめに</h2>
+      <p id="firstIntro">記録ファイル (スプラ3戦績データ.json) を開いてください. 以後, 登録するたびにこのファイルへ自動で保存します.</p>
+      <div class="actions" id="firstBtns">
+        <button class="primary" id="firstOpen">記録ファイルを開く</button>
+        <button class="secondary" id="firstNew">記録なしで始める</button>
+      </div>
+      <p class="hint" id="firstNote"></p>
+      <p class="hint" id="firstUnofficial" hidden>このアプリは個人が作った非公式のツールで, 任天堂とは関係ありません.</p>
+    </div>
+  </section>
+
+  <section id="tab-input">
+    <div class="grid2">
+      <div class="card">
+        <div class="frow"><span class="lab">ルール</span><div class="btns" id="ruleBtns"></div></div>
+        <div class="frow"><label for="fStage">ステージ</label><select id="fStage"></select></div>
+        <div class="frow"><label for="fWeapon">武器</label><div class="inline"><input type="text" id="fWeapon" list="weaponList" style="width: 320px" autocomplete="off"><span class="hint" id="weaponHint"></span></div></div>
+        <div class="frow"><label for="fKill">キル数</label><div class="inline"><input type="number" id="fKill" min="0" max="99" step="1" inputmode="numeric"><label for="fDeath" class="lab" style="margin-left: 14px">デス数</label><input type="number" id="fDeath" min="0" max="99" step="1" inputmode="numeric"></div></div>
+        <div class="frow"><span class="lab">勝ち負け</span>
+          <div class="btns"><button class="tb win" id="bWin" aria-pressed="false">勝ち</button><button class="tb lose" id="bLose" aria-pressed="false">負け</button><span class="sep"></span><button class="tb ko" id="bKO" aria-pressed="false">ノックアウト</button><button class="tb cb" id="bCB" aria-pressed="false">逆転負け</button><span class="sep"></span><button class="tb acc" id="bAcc" aria-pressed="false" title="回線落ちや放置など, 集計から外したい試合">事故 (回線落ち・放置)</button></div></div>
+        <div class="frow"><span class="lab">金表彰<span class="sub">(3つまで)</span></span><div class="btns g3" id="goldBtns"></div></div>
+        <div class="frow"><label for="fXpd">XP増減</label><div class="inline"><div class="btns" id="xpdBtns"></div><input type="number" id="fXpd" step="0.1" placeholder="自由枠" title="ボタンにない値はここに半角で入れます (例 12.3, -8)"></div></div>
+        <div class="frow"><label for="fXpabs">試合前のXP</label><div class="inline"><input type="number" id="fXpabs" step="0.1"><span class="hint">分かるときだけ. これに増減を足した値が試合後のXP</span></div></div>
+        <div class="frow"><span class="lab">反省<span class="sub">(いくつでも)</span></span><div id="reflBtns"></div></div>
+        <div class="frow"><span class="lab">良かった点<span class="sub">(いくつでも)</span></span><div class="btns g3" id="goodBtns"></div></div>
+        <div class="frow"><label for="fNote">その他</label><textarea id="fNote" placeholder="項目にない反省やメモ"></textarea></div>
+        <div class="actions">
+          <button class="primary" id="bRegister" title="⌘+Enter でも登録できます">登録</button>
+          <button class="secondary" id="bClear">クリア</button>
+          <span style="flex: 1"></span>
+          <button class="danger" id="bUndo">直前の登録を取り消す</button>
+        </div>
+        <div id="status"></div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="kv">
+            <div><div class="k">日時</div><div class="v" id="iNow"></div></div>
+            <div><div class="k">シーズン (今日)</div><div class="v" id="iSeason"></div></div>
+            <div class="wide"><div class="k" id="iXpLabel">現在のXP</div><div class="v" id="iXp"></div></div>
+            <div><div class="k" id="iSeasonLabel">このルールの今季</div><div class="v" id="iSeasonWL" style="font-size: 16px"></div></div>
+            <div><div class="k">今日 (全ルール)</div><div class="v" id="iTodayWL" style="font-size: 16px"></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>最近の記録</h2>
+          <div class="tablewrap"><table id="recentTable"></table></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-log" hidden>
+    <div class="card">
+      <div class="filters" id="logFilters"></div>
+      <div class="strip" id="logStrip"></div>
+      <div class="hint" id="logInfo"></div>
+    </div>
+    <div class="card"><div class="tablewrap"><table id="logTable"></table></div><div class="actions" id="logMore"></div></div>
+  </section>
+
+  <section id="tab-summary" hidden>
+    <div class="card"><div class="filters"><label>集計するシーズン<select id="sumSeason"></select></label>
+      <label style="flex-direction: row; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); font-weight: 400; padding-bottom: 8px"><input type="checkbox" id="sumExAcc" checked> 事故の試合を集計から除く</label>
+      <span class="hint" id="sumAccInfo" style="padding-bottom: 9px"></span></div></div>
+    <div id="summaryBody"></div>
+  </section>
+
+  <section id="tab-settings" hidden>
+    <div class="card">
+      <h2>記録ファイル</h2>
+      <p id="fileInfo"></p>
+      <div class="actions">
+        <button class="secondary" id="sOpen">別の記録ファイルを開く</button>
+        <button class="secondary" id="sNew">新しい記録ファイルに保存する</button>
+      </div>
+      <p class="hint">登録・修正・削除のたびに, このブラウザの中と記録ファイルの両方へ自動で保存します. Chrome を起動し直したあとは, 上の帯の「保存を再開する」を1回押してください.</p>
+    </div>
+    <div class="card">
+      <h2>書き出しと読み込み</h2>
+      <div class="actions">
+        <button class="secondary" id="sCsv">CSV に書き出す (Excel 用)</button>
+        <button class="secondary" id="sJson">JSON に書き出す (控え)</button>
+        <button class="secondary" id="sImport">JSON を読み込む</button>
+        <input type="file" id="importFile" accept=".json,application/json" hidden>
+      </div>
+      <p class="hint">JSON を読み込むと, いまの記録はその内容で置き換わります (確認が出ます).</p>
+    </div>
+    <div class="card">
+      <h2>リスト</h2>
+      <div class="inline"><input type="text" id="newStage" placeholder="ステージ名"><button class="secondary" id="addStage">ステージを追加</button></div>
+      <div class="inline" style="margin-top: 10px"><select id="newWeaponCat"></select><input type="text" id="newWeapon" placeholder="武器名" style="width: 260px"><button class="secondary" id="addWeapon">武器を追加</button></div>
+      <p class="hint" id="listInfo"></p>
+    </div>
+  </section>
+
+  <section id="tab-help" hidden>
+    <div class="card help" id="helpBody"></div>
+  </section>
+</main>
+
+<datalist id="weaponList"></datalist>
+
+<dialog id="editDlg">
+  <div class="dh" id="editTitle">記録を直す</div>
+  <div class="db"><div class="egrid" id="editGrid"></div></div>
+  <div class="df">
+    <button class="danger" id="eDelete" style="margin-right: auto">この記録を削除</button>
+    <button class="secondary" id="eCancel">やめる</button>
+    <button class="primary" id="eSave" style="padding: 9px 26px; font-size: 15px">保存</button>
+  </div>
+</dialog>
+
+<dialog id="choiceDlg">
+  <div class="dh" id="choiceTitle">確認</div>
+  <div class="db"><p id="choiceText" style="white-space: pre-line; line-height: 1.7"></p></div>
+  <div class="df" id="choiceBtns"></div>
+</dialog>
+
+<script id="defaults" type="application/json">{"dist": true, "storageKey": "splatoon3-log-dist/data", "idbName": "splatoon3-log-dist", "axisMin": null, "rules": [{"name": "ガチエリア", "short": "エリア", "color": "#1FA37A", "tint": "#E2F4EC"}, {"name": "ガチヤグラ", "short": "ヤグラ", "color": "#2F6FDE", "tint": "#E3ECFB"}, {"name": "ガチホコ", "short": "ホコ", "color": "#E07B12", "tint": "#FCEBD8"}, {"name": "ガチアサリ", "short": "アサリ", "color": "#C2409A", "tint": "#F7E2F0"}], "stages": ["ユノハナ大渓谷", "ゴンズイ地区", "ヤガラ市場", "マテガイ放水路", "ナメロウ金属", "マサバ海峡大橋", "キンメダイ美術館", "マヒマヒリゾート&スパ", "海女美術大学", "チョウザメ造船", "ザトウマーケット", "スメーシーワールド", "クサヤ温泉", "ヒラメが丘団地", "ナンプラー遺跡", "マンタマリア号", "タラポートショッピングパーク", "コンブトラック", "タカアシ経済特区", "オヒョウ海運", "バイガイ亭", "ネギトロ炭鉱", "カジキ空港", "リュウグウターミナル", "デカライン高架下"], "weapons": [["シューター", "ボールドマーカー"], ["シューター", "ボールドマーカーネオ"], ["シューター", "わかばシューター"], ["シューター", "もみじシューター"], ["シューター", "シャープマーカー"], ["シューター", "シャープマーカーネオ"], ["シューター", "シャープマーカーGECK"], ["シューター", "プロモデラーMG"], ["シューター", "プロモデラーRG"], ["シューター", "プロモデラー彩"], ["シューター", "スプラシューター"], ["シューター", "スプラシューターコラボ"], ["シューター", "スプラシューター煌"], ["シューター", ".52ガロン"], ["シューター", ".52ガロンデコ"], ["シューター", "N-ZAP85"], ["シューター", "N-ZAP89"], ["シューター", "プライムシューター"], ["シューター", "プライムシューターコラボ"], ["シューター", "プライムシューターFRZN"], ["シューター", ".96ガロン"], ["シューター", ".96ガロンデコ"], ["シューター", ".96ガロン爪"], ["シューター", "ジェットスイーパー"], ["シューター", "ジェットスイーパーカスタム"], ["シューター", "ジェットスイーパーCOBR"], ["シューター", "スペースシューター"], ["シューター", "スペースシューターコラボ"], ["シューター", "L3リールガン"], ["シューター", "L3リールガンD"], ["シューター", "L3リールガン箔"], ["シューター", "H3リールガン"], ["シューター", "H3リールガンD"], ["シューター", "H3リールガンSNAK"], ["シューター", "ボトルガイザー"], ["シューター", "ボトルガイザーフォイル"], ["ブラスター", "ノヴァブラスター"], ["ブラスター", "ノヴァブラスターネオ"], ["ブラスター", "ホットブラスター"], ["ブラスター", "ホットブラスターカスタム"], ["ブラスター", "ホットブラスター艶"], ["ブラスター", "ロングブラスター"], ["ブラスター", "ロングブラスターカスタム"], ["ブラスター", "クラッシュブラスター"], ["ブラスター", "クラッシュブラスターネオ"], ["ブラスター", "ラピッドブラスター"], ["ブラスター", "ラピッドブラスターデコ"], ["ブラスター", "Rブラスターエリート"], ["ブラスター", "Rブラスターエリートデコ"], ["ブラスター", "RブラスターエリートWNTR"], ["ブラスター", "S-BLAST92"], ["ブラスター", "S-BLAST91"], ["ローラー", "カーボンローラー"], ["ローラー", "カーボンローラーデコ"], ["ローラー", "カーボンローラーANGL"], ["ローラー", "スプラローラー"], ["ローラー", "スプラローラーコラボ"], ["ローラー", "ダイナモローラー"], ["ローラー", "ダイナモローラーテスラ"], ["ローラー", "ダイナモローラー冥"], ["ローラー", "ヴァリアブルローラー"], ["ローラー", "ヴァリアブルローラーフォイル"], ["ローラー", "ワイドローラー"], ["ローラー", "ワイドローラーコラボ"], ["ローラー", "ワイドローラー惑"], ["フデ", "パブロ"], ["フデ", "パブロ・ヒュー"], ["フデ", "ホクサイ"], ["フデ", "ホクサイ・ヒュー"], ["フデ", "ホクサイ彗"], ["フデ", "フィンセント"], ["フデ", "フィンセント・ヒュー"], ["フデ", "フィンセントBRNZ"], ["チャージャー", "スクイックリンα"], ["チャージャー", "スクイックリンβ"], ["チャージャー", "スプラチャージャー"], ["チャージャー", "スプラチャージャーコラボ"], ["チャージャー", "スプラチャージャーFRST"], ["チャージャー", "スプラスコープ"], ["チャージャー", "スプラスコープコラボ"], ["チャージャー", "スプラスコープFRST"], ["チャージャー", "リッター4K"], ["チャージャー", "リッター4Kカスタム"], ["チャージャー", "4Kスコープ"], ["チャージャー", "4Kスコープカスタム"], ["チャージャー", "14式竹筒銃・甲"], ["チャージャー", "14式竹筒銃・乙"], ["チャージャー", "ソイチューバー"], ["チャージャー", "ソイチューバーカスタム"], ["チャージャー", "R-PEN/5H"], ["チャージャー", "R-PEN/5B"], ["スロッシャー", "バケットスロッシャー"], ["スロッシャー", "バケットスロッシャーデコ"], ["スロッシャー", "ヒッセン"], ["スロッシャー", "ヒッセン・ヒュー"], ["スロッシャー", "ヒッセンASH"], ["スロッシャー", "スクリュースロッシャー"], ["スロッシャー", "スクリュースロッシャーネオ"], ["スロッシャー", "オーバーフロッシャー"], ["スロッシャー", "オーバーフロッシャーデコ"], ["スロッシャー", "エクスプロッシャー"], ["スロッシャー", "エクスプロッシャーカスタム"], ["スロッシャー", "モップリン"], ["スロッシャー", "モップリンD"], ["スロッシャー", "モップリン角"], ["スピナー", "スプラスピナー"], ["スピナー", "スプラスピナーコラボ"], ["スピナー", "スプラスピナーPYTN"], ["スピナー", "バレルスピナー"], ["スピナー", "バレルスピナーデコ"], ["スピナー", "ハイドラント"], ["スピナー", "ハイドラントカスタム"], ["スピナー", "ハイドラント圧"], ["スピナー", "ノーチラス47"], ["スピナー", "ノーチラス79"], ["スピナー", "クーゲルシュライバー"], ["スピナー", "クーゲルシュライバー・ヒュー"], ["スピナー", "イグザミナー"], ["スピナー", "イグザミナー・ヒュー"], ["マニューバー", "スパッタリー"], ["マニューバー", "スパッタリー・ヒュー"], ["マニューバー", "スパッタリーOWL"], ["マニューバー", "スプラマニューバー"], ["マニューバー", "スプラマニューバーコラボ"], ["マニューバー", "スプラマニューバー耀"], ["マニューバー", "ケルビン525"], ["マニューバー", "ケルビン525デコ"], ["マニューバー", "デュアルスイーパー"], ["マニューバー", "デュアルスイーパーカスタム"], ["マニューバー", "デュアルスイーパー蹄"], ["マニューバー", "クアッドホッパーブラック"], ["マニューバー", "クアッドホッパーホワイト"], ["マニューバー", "ガエンFF"], ["マニューバー", "ガエンFFカスタム"], ["シェルター", "パラシェルター"], ["シェルター", "パラシェルターソレーラ"], ["シェルター", "キャンピングシェルター"], ["シェルター", "キャンピングシェルターソレーラ"], ["シェルター", "キャンピングシェルターCREM"], ["シェルター", "スパイガジェット"], ["シェルター", "スパイガジェットソレーラ"], ["シェルター", "スパイガジェット繚"], ["シェルター", "24式張替傘・甲"], ["シェルター", "24式張替傘・乙"], ["ストリンガー", "トライストリンガー"], ["ストリンガー", "トライストリンガーコラボ"], ["ストリンガー", "トライストリンガー燈"], ["ストリンガー", "LACT-450"], ["ストリンガー", "LACT-450デコ"], ["ストリンガー", "LACT-450MILK"], ["ストリンガー", "フルイドV"], ["ストリンガー", "フルイドVカスタム"], ["ワイパー", "ジムワイパー"], ["ワイパー", "ジムワイパー・ヒュー"], ["ワイパー", "ジムワイパー封"], ["ワイパー", "ドライブワイパー"], ["ワイパー", "ドライブワイパーデコ"], ["ワイパー", "ドライブワイパーRUST"], ["ワイパー", "デンタルワイパーミント"], ["ワイパー", "デンタルワイパースミ"]], "awards": [["バトル No.1", ""], ["トドメ数 No.1", ""], ["アシスト数 No.1", ""], ["塗りポイント No.1", ""], ["注目された時間 No.1", ""], ["味方のジャンプ先 No.1", ""], ["ガチエリア塗り No.1", "ガチエリア"], ["ガチエリア前線キープ No.1", "ガチエリア"], ["カウント進行 No.1", "ガチヤグラ,ガチホコ,ガチアサリ"], ["ベストカウント更新", "ガチヤグラ,ガチホコ"], ["ガチアサリ運んだ時間 No.1", "ガチアサリ"]], "reflects": ["横・裏からやられた", "射程負け", "撃ち合い負け (エイム)", "撃ち合い負け (キャラコン)", "サブ・スペシャルでやられた", "人数不利で前に出た", "沼ジャン", "ルール関与が足りない", "打開・攻めが味方と合わない", "スペシャルを抱え落ち・使い遅れ", "インク管理"], "reflectGroups": [["やられ方", ["横・裏からやられた", "射程負け", "撃ち合い負け (エイム)", "撃ち合い負け (キャラコン)", "サブ・スペシャルでやられた", "人数不利で前に出た", "沼ジャン"]], ["立ち回り", ["ルール関与が足りない", "打開・攻めが味方と合わない", "スペシャルを抱え落ち・使い遅れ", "インク管理"]]], "legacyReflects": ["敵位置の把握", "状況確認不足"], "reflectMap": {"射程管理": "射程負け", "エイム": "撃ち合い負け (エイム)", "キャラコン": "撃ち合い負け (キャラコン)", "ルール関与をしていない": "ルール関与が足りない", "イカランプ無視": "人数不利で前に出た"}, "goods": ["撃ち合いに勝てた", "生き残れた", "打開できた", "前線を保てた", "ルールに関われた", "スペシャルを上手く使えた"]}</script>
+<script>
+"use strict";
+/* ============================================================ 定数 */
+const DEF = JSON.parse(document.getElementById("defaults").textContent);
+const RULES = DEF.rules;                       // [{name, short, color, tint}]
+const RULE_NAMES = RULES.map(r => r.name);
+const AWARDS = DEF.awards;                     // [[名前, 出るルール ("" は全ルール)]]
+const REFLECTS = DEF.reflects;                 // 反省の項目 (いまのボタン)
+const REFL_GROUPS = DEF.reflectGroups;         // [[段の名前, [項目...]], ...]
+const LEGACY = DEF.legacyReflects;             // 旧項目 (以前の版の記録にだけある)
+const REFL_MAP = DEF.reflectMap;               // 言い換えただけの旧項目 → 新しい項目
+const GOODS = DEF.goods;                       // 良かった点
+const ALL_REFL = [...REFLECTS, ...LEGACY];
+const NPTS = 100;                              // XP推移グラフに出す直近の点の数
+const DIST = !!DEF.dist;                       // 配布版 (個人の経緯の説明を出さない, 縦軸は自動)
+const XP_AXIS_MIN = DEF.axisMin ?? null, XP_AXIS_STEP = 50;   // XP推移グラフの縦軸の下限 (null は記録に合わせて自動) と目盛り
+const LS_KEY = DEF.storageKey || "splatoon3-log/data";
+const ALL = "全期間";
+
+/* ============================================================ 小道具 */
+const $ = id => document.getElementById(id);
+const p2 = n => String(n).padStart(2, "0");
+const isNum = v => typeof v === "number" && isFinite(v);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function parseDT(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/.exec(s || "");
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)) : new Date(NaN);
+}
+const isoLocal = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
+const dayKey = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+const fmtDT = d => `${d.getFullYear()}/${p2(d.getMonth() + 1)}/${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+const fmtMD = d => `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${p2(d.getMinutes())}`;
+function seasonOf(d) {
+  const m = d.getMonth() + 1;
+  return (d.getFullYear() - (m <= 2 ? 1 : 0)) + ["冬", "春", "夏", "秋"][Math.floor((m % 12) / 3)];
+}
+const f1 = v => isNum(v) ? v.toFixed(1) : "";
+const f2 = v => isNum(v) ? v.toFixed(2) : "";
+const pct = v => isNum(v) ? (v * 100).toFixed(1) + "%" : "";
+const signed = v => !isNum(v) ? "" : v > 0 ? "+" + v.toFixed(1) : v < 0 ? v.toFixed(1) : "±0";
+const ruleOf = name => RULES.find(r => r.name === name);
+const numOrNull = s => { const t = String(s ?? "").trim(); if (t === "") return null; const v = Number(t); return isFinite(v) ? v : NaN; };
+
+/* ============================================================ データ */
+let data = null;          // {app, version, savedAt, games, stages, weapons, form}
+let D = [];               // games に計算値をつけたもの (登録順)
+
+function emptyData() {
+  return { app: "splatoon3-log", version: 1, savedAt: "", games: [], stages: DEF.stages.slice(),
+           weapons: DEF.weapons.map(w => w.slice()), form: { rule: "", weapon: "" } };
+}
+function normalize(d) {
+  const out = Object.assign(emptyData(), d || {});
+  out.games = (out.games || []).map(g => ({
+    dt: g.dt, rule: g.rule || "", stage: g.stage || "", weapon: g.weapon || "", result: g.result || "",
+    kill: isNum(g.kill) ? g.kill : null, death: isNum(g.death) ? g.death : null,
+    gold: Array.isArray(g.gold) ? g.gold.filter(x => x).slice(0, 3) : [],
+    xpd: isNum(g.xpd) ? g.xpd : null, xpabs: isNum(g.xpabs) ? g.xpabs : null,
+    refl: orderRefl((Array.isArray(g.refl) ? g.refl : []).map(r => REFL_MAP[r] || r)),
+    good: Array.isArray(g.good) ? GOODS.filter(x => g.good.includes(x)) : [],
+    note: g.note || "", ko: !!g.ko, comeback: !!g.comeback, accident: !!g.accident }));
+  out.version = 2;
+  if (!Array.isArray(out.stages) || !out.stages.length) out.stages = DEF.stages.slice();
+  if (!Array.isArray(out.weapons) || !out.weapons.length) out.weapons = DEF.weapons.map(w => w.slice());
+  out.form = Object.assign({ rule: "", weapon: "" }, out.form || {});
+  return out;
+}
+/* 反省を決まった順に並べる (知らない名前は消さずに後ろへ) */
+function orderRefl(list) {
+  const u = [...new Set(list.filter(x => x))];
+  const known = ALL_REFL.filter(x => u.includes(x));
+  return [...known, ...u.filter(x => !ALL_REFL.includes(x))];
+}
+function sortGames() {
+  data.games = data.games.map((g, i) => [g, i]).sort((a, b) => (a[0].dt < b[0].dt ? -1 : a[0].dt > b[0].dt ? 1 : a[1] - b[1])).map(x => x[0]);
+}
+/* 試合ごとの計算値. XP は「試合前のXPがあればそれ + 増減, なければ同じルールの前のXP + 増減」.
+   XP は小数1桁に丸める (増減を足し引きしたときの計算誤差 1349.1000000000001 などを残さない) */
+function derive(games) {
+  const last = {};
+  return games.map((g, i) => {
+    const d = parseDT(g.dt);
+    const prev = last[g.rule];
+    let xp = null;
+    if (isNum(g.xpabs)) xp = g.xpabs + (isNum(g.xpd) ? g.xpd : 0);
+    else if (isNum(prev)) xp = prev + (isNum(g.xpd) ? g.xpd : 0);
+    if (xp !== null) { xp = Math.round(xp * 10) / 10; last[g.rule] = xp; }
+    const kd = isNum(g.kill) && isNum(g.death) ? g.kill / Math.max(g.death, 1) : null;
+    return { g, i, no: i + 1, d, season: seasonOf(d), day: dayKey(d), xp, kd, gcount: g.gold.length };
+  });
+}
+function recompute() { D = derive(data.games); }
+
+/* ============================================================ 集計 */
+const inSel = sel => x => sel === ALL || x.season === sel;
+let excludeAccident = true;                    // 集計で事故の試合を除く (XPのグラフと現在XPには含める)
+const inStat = sel => x => inSel(sel)(x) && !(excludeAccident && x.g.accident);
+function stats(list) {
+  const s = { n: 0, w: 0, l: 0, ks: 0, kc: 0, ds: 0, dc: 0, gold: 0, kow: 0, kol: 0, cb: 0 };
+  for (const x of list) {
+    const g = x.g;
+    if (g.result === "勝ち") s.w++; else if (g.result === "負け") s.l++; else continue;
+    s.n++;
+    if (isNum(g.kill)) { s.ks += g.kill; s.kc++; }
+    if (isNum(g.death)) { s.ds += g.death; s.dc++; }
+    s.gold += x.gcount;
+    if (g.ko && g.result === "勝ち") s.kow++;
+    if (g.ko && g.result === "負け") s.kol++;
+    if (g.comeback) s.cb++;
+  }
+  s.wr = s.n ? s.w / s.n : null; s.avgK = s.kc ? s.ks / s.kc : null; s.avgD = s.dc ? s.ds / s.dc : null;
+  s.kd = s.ds ? s.ks / s.ds : null; s.gpg = s.n ? s.gold / s.n : null;
+  return s;
+}
+function ruleTable(sel) {
+  const S = D.filter(inStat(sel)), A = D.filter(inSel(sel));
+  const rows = RULES.map(r => {
+    const gl = S.filter(x => x.g.rule === r.name);
+    const xs = A.filter(x => x.g.rule === r.name && x.xp !== null).map(x => x.xp);
+    return Object.assign(stats(gl), { rule: r.name, cur: xs.length ? xs[xs.length - 1] : null, max: xs.length ? Math.max(...xs) : null });
+  });
+  rows.push(Object.assign(stats(S), { rule: "全ルール", cur: null, max: null }));
+  return rows;
+}
+function breakdown(sel, key, names) {
+  const S = D.filter(inStat(sel));
+  return names.map(name => {
+    const gl = S.filter(x => x.g[key] === name);
+    const per = RULES.map(r => stats(gl.filter(x => x.g.rule === r.name)));
+    const all = stats(gl);
+    return { name, all, per };
+  });
+}
+function weaponTop(sel, k = 15) {
+  const S = D.filter(inStat(sel));
+  const cnt = new Map();
+  for (const x of S) if (x.g.weapon) cnt.set(x.g.weapon, (cnt.get(x.g.weapon) || 0) + 1);
+  const order = new Map(data.weapons.map((w, i) => [w[1], i]));
+  return [...cnt.entries()].sort((a, b) => b[1] - a[1] || (order.get(a[0]) ?? 1e9) - (order.get(b[0]) ?? 1e9) || (a[0] < b[0] ? -1 : 1))
+    .slice(0, k).map(e => e[0]);
+}
+function itemTable(sel, items, has) {
+  const S = D.filter(inStat(sel));
+  const total = S.length;
+  return items.map(name => {
+    const per = RULES.map(r => S.filter(x => x.g.rule === r.name && has(x.g, name)).length);
+    const tot = per.reduce((a, b) => a + b, 0);
+    return { name, tot, rate: total ? tot / total : null, per };
+  });
+}
+/* デス数ごとの勝率 (デスを入れていない試合は数えない) */
+const DEATH_BINS = [[0, 3, "0〜3"], [4, 5, "4〜5"], [6, 7, "6〜7"], [8, 9, "8〜9"], [10, Infinity, "10以上"]];
+function deathTable(sel) {
+  const S = D.filter(inStat(sel)).filter(x => isNum(x.g.death));
+  const mk = (label, f) => { const gl = S.filter(f); return { label, all: stats(gl), per: RULES.map(r => stats(gl.filter(x => x.g.rule === r.name))) }; };
+  return { rows: DEATH_BINS.map(([lo, hi, lab]) => mk(lab, x => x.g.death >= lo && x.g.death <= hi)),
+           sum: [mk("5以下", x => x.g.death <= 5), mk("6以上", x => x.g.death >= 6)],
+           missing: D.filter(inStat(sel)).length - S.length };
+}
+/* 日ごと (新しい順). xpd はその日に入れた XP増減の合計 (入れていなければ null) */
+function dayTable(sel) {
+  const by = new Map();
+  for (const x of D.filter(inSel(sel))) { if (!by.has(x.day)) by.set(x.day, []); by.get(x.day).push(x); }
+  return [...by.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([day, all]) => {
+    const ds = all.filter(x => isNum(x.g.xpd)).map(x => x.g.xpd);      // XP増減は事故の試合も含める
+    const gl = all.filter(x => !(excludeAccident && x.g.accident));
+    return { day, d: all[0].d, all: stats(gl), per: RULES.map(r => gl.filter(x => x.g.rule === r.name).length), acc: all.length - gl.length,
+             xpd: ds.length ? Math.round(ds.reduce((a, b) => a + b, 0) * 10) / 10 : null };
+  });
+}
+/* 勝率の色 (0% 赤, 50% 白, 100% 青. Excel 版の色の段階と同じ) */
+function rateBg(p) {
+  if (!isNum(p)) return "";
+  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  const c = p < 0.5 ? mix([0xF4, 0xB6, 0xB6], [255, 255, 255], p / 0.5) : mix([255, 255, 255], [0xA9, 0xC7, 0xF5], (p - 0.5) / 0.5);
+  return `background:rgb(${c.join(",")})`;
+}
+const WD = ["日", "月", "火", "水", "木", "金", "土"];
+
+/* XP推移グラフの点. 期間の最初にXPが分かった試合と, XPが前の点から変わった試合だけ */
+function chartPoints(rule, sel) {
+  const gl = D.filter(x => x.g.rule === rule && inSel(sel)(x));
+  const pts = [];
+  let last = null;
+  for (const x of gl) {
+    if (x.xp === null) continue;
+    if (!pts.length || Math.abs(x.xp - last) > 1e-6) { pts.push({ xp: x.xp, x }); last = x.xp; }
+  }
+  const start = pts.length ? Math.max(0, pts.length - NPTS) : 0;
+  return { games: gl.length, total: pts.length, points: pts.slice(start).map((p, j) => ({ k: start + j, xp: p.xp, x: p.x })) };
+}
+function seasons() {
+  const set = new Set(D.map(x => x.season));
+  set.add(seasonOf(new Date()));
+  const order = s => { const y = parseInt(s, 10); return y * 4 + ["春", "夏", "秋", "冬"].indexOf(s.slice(-1)); };
+  return [ALL, ...[...set].sort((a, b) => order(b) - order(a))];
+}
+
+/* ============================================================ 保存 (ブラウザ内 + 記録ファイル) */
+let fileHandle = null, fileState = "none", lastFileWrite = null, fileError = "";
+const fsSupported = typeof window.showOpenFilePicker === "function";
+function loadLocal() { try { const t = localStorage.getItem(LS_KEY); return t ? normalize(JSON.parse(t)) : null; } catch (e) { return null; } }
+function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) { setStatus("ブラウザ内への保存に失敗しました " + e, "err"); } }
+function idb(mode, fn) {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DEF.idbName || "splatoon3-log", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("kv");
+    r.onerror = () => rej(r.error);
+    r.onsuccess = () => {
+      const tx = r.result.transaction("kv", mode), st = tx.objectStore("kv");
+      const q = fn(st);
+      tx.oncomplete = () => res(q && q.result);
+      tx.onerror = () => rej(tx.error);
+    };
+  });
+}
+const idbGet = k => idb("readonly", st => st.get(k));
+const idbSet = (k, v) => idb("readwrite", st => st.put(v, k));
+let writeChain = Promise.resolve();
+function scheduleWrite() {
+  if (fileState !== "ok" || !fileHandle) return;
+  const snapshot = JSON.stringify(data, null, 1);
+  writeChain = writeChain.then(async () => {
+    const w = await fileHandle.createWritable();
+    await w.write(snapshot);
+    await w.close();
+    lastFileWrite = new Date();
+    renderSaveStatus();
+  }).catch(e => { fileState = "error"; fileError = String(e && e.message || e); renderSaveStatus(); });
+}
+function persist() {
+  data.savedAt = isoLocal(new Date());
+  sortGames();
+  recompute();
+  saveLocal();
+  scheduleWrite();
+  renderSaveStatus();
+}
+async function readHandle(h) {
+  const text = await (await h.getFile()).text();
+  const d = JSON.parse(text);
+  if (!d || !Array.isArray(d.games)) throw new Error("戦績の記録ファイルではありません");
+  return normalize(d);
+}
+const sameGames = (a, b) => JSON.stringify(a.games) === JSON.stringify(b.games);
+/* ブラウザ内の記録とファイルの記録が違うとき, どちらを使うか聞く */
+async function reconcile(local, fromFile, fileName) {
+  if (!local || !local.games.length) return fromFile;
+  if (sameGames(local, fromFile)) return fromFile.savedAt > local.savedAt ? fromFile : local;
+  const i = await choose("記録の違い",
+    `記録ファイル「${fileName}」\n  ${fromFile.games.length}試合, 最後の保存 ${fromFile.savedAt.replace("T", " ") || "不明"}\n` +
+    `このブラウザの中の記録\n  ${local.games.length}試合, 最後の保存 ${local.savedAt.replace("T", " ") || "不明"}\n\nどちらを使いますか. 使わない方は上書きされます.`,
+    [`ファイルの記録 (${fromFile.games.length}試合)`, `ブラウザの中の記録 (${local.games.length}試合)`]);
+  return i === 0 ? fromFile : local;
+}
+async function attachHandle(h, how) {
+  if (await h.requestPermission({ mode: "readwrite" }) !== "granted") { setStatus("記録ファイルへの書き込みが許可されませんでした.", "err"); return false; }
+  let chosen = data;
+  if (how === "open") {
+    const fromFile = await readHandle(h);
+    chosen = await reconcile(data, fromFile, h.name);
+  }
+  data = chosen || emptyData();
+  syncFormFromData();
+  fileHandle = h; fileState = "ok"; fileError = "";
+  await idbSet("file", h);
+  persist();
+  renderAll();
+  return true;
+}
+async function openFile() {
+  try {
+    const [h] = await window.showOpenFilePicker({ types: [{ description: "戦績の記録", accept: { "application/json": [".json"] } }] });
+    await attachHandle(h, "open");
+  } catch (e) { if (e.name !== "AbortError") setStatus("記録ファイルを開けませんでした " + e.message, "err"); }
+}
+async function newFile() {
+  try {
+    const h = await window.showSaveFilePicker({ suggestedName: "スプラ3戦績データ.json", types: [{ description: "戦績の記録", accept: { "application/json": [".json"] } }] });
+    if (!data) data = emptyData();
+    await attachHandle(h, "new");
+  } catch (e) { if (e.name !== "AbortError") setStatus("記録ファイルを作れませんでした " + e.message, "err"); }
+}
+async function resumeFile() {
+  try {
+    if (await fileHandle.requestPermission({ mode: "readwrite" }) !== "granted") return;
+    const fromFile = await readHandle(fileHandle);
+    data = await reconcile(data, fromFile, fileHandle.name);
+    syncFormFromData();
+    fileState = "ok"; fileError = "";
+    persist();
+    renderAll();
+  } catch (e) { fileState = "error"; fileError = String(e.message || e); renderSaveStatus(); }
+}
+
+/* ============================================================ 画面の状態 */
+const form = { rule: "", stage: "", weapon: "", result: "", ko: false, cb: false, acc: false, gold: [], refl: new Set(), good: new Set() };
+function syncFormFromData() {
+  if (!data) return;
+  if (!form.rule) form.rule = data.form.rule || "";
+  if (!$("fWeapon").value) $("fWeapon").value = data.form.weapon || "";
+}
+function setStatus(msg, kind) { const s = $("status"); s.textContent = msg; s.className = kind || ""; }
+function choose(title, text, labels) {
+  return new Promise(res => {
+    $("choiceTitle").textContent = title; $("choiceText").textContent = text;
+    const box = $("choiceBtns"); box.innerHTML = "";
+    labels.forEach((lab, i) => {
+      const b = document.createElement("button");
+      b.className = i === 0 ? "primary" : "secondary";
+      if (i === 0) b.style.cssText = "padding: 9px 20px; font-size: 14px";
+      b.textContent = lab;
+      b.onclick = () => { $("choiceDlg").close(); res(i); };
+      box.appendChild(b);
+    });
+    $("choiceDlg").oncancel = () => res(labels.length - 1);
+    $("choiceDlg").showModal();
+  });
+}
+
+/* ============================================================ 描画 */
+function renderSaveStatus() {
+  const s = $("saveStatus"), b = $("banner");
+  let color, text, btn = "";
+  if (!fsSupported) { color = "#F59E0B"; text = "このブラウザの中にだけ保存 (ファイル保存は Chrome で使えます)"; }
+  else if (fileState === "ok") { color = "#22C55E"; text = `記録ファイル「${esc(fileHandle.name)}」に保存` + (lastFileWrite ? ` ${p2(lastFileWrite.getHours())}:${p2(lastFileWrite.getMinutes())}:${p2(lastFileWrite.getSeconds())}` : ""); }
+  else if (fileState === "paused") { color = "#F59E0B"; text = "記録ファイルへの保存が止まっています"; btn = `<button id="resumeBtn2">再開</button>`; }
+  else if (fileState === "error") { color = "#EF4444"; text = "記録ファイルへの保存に失敗しました"; btn = `<button id="resumeBtn2">再開</button>`; }
+  else { color = "#F59E0B"; text = "記録ファイル未接続 (このブラウザの中にだけ保存)"; }
+  s.innerHTML = `<span class="dot" style="background:${color}"></span><span>${text}</span>${btn}`;
+  if ($("resumeBtn2")) $("resumeBtn2").onclick = resumeFile;
+  if (fsSupported && (fileState === "paused" || fileState === "error") && data) {
+    b.hidden = false;
+    b.innerHTML = `<span>記録ファイル「${esc(fileHandle ? fileHandle.name : "")}」への保存が止まっています${fileState === "error" ? " (" + esc(fileError) + ")" : " (Chrome を起動し直したため)"}. 登録した内容はこのブラウザの中には保存されています.</span><button id="resumeBtn">保存を再開する</button>`;
+    $("resumeBtn").onclick = resumeFile;
+  } else b.hidden = true;
+  if ($("fileInfo")) $("fileInfo").textContent = !fsSupported ? "このブラウザではファイルへの自動保存が使えません. 書き出しで控えを取ってください." :
+    fileHandle ? `記録ファイル  ${fileHandle.name}  (${{ ok: "保存中", paused: "停止中", error: "失敗", none: "未接続" }[fileState]})` : "記録ファイルはまだ選ばれていません.";
+}
+function showTab(name) {
+  for (const b of document.querySelectorAll("#tabs button")) b.setAttribute("aria-selected", b.dataset.tab === name ? "true" : "false");
+  for (const t of ["first", "input", "log", "summary", "settings", "help"]) $("tab-" + t).hidden = t !== name;
+  if (name === "log") renderLog();
+  if (name === "summary") renderSummary();
+  if (name === "settings") renderSettings();
+}
+function currentTab() { const b = document.querySelector('#tabs button[aria-selected="true"]'); return b ? b.dataset.tab : "input"; }
+function renderAll() {
+  if (!data) { $("tabs").style.visibility = "hidden"; showTab("first"); renderSaveStatus(); return; }
+  $("tabs").style.visibility = "visible";
+  recompute();
+  fillLists();
+  renderForm();
+  renderInputSide();
+  renderSaveStatus();
+  showTab(currentTab() === "first" ? "input" : currentTab());
+}
+function fillLists() {
+  const st = $("fStage"), keep = st.value || form.stage;
+  st.innerHTML = `<option value="">選んでください</option>` + data.stages.map(s => `<option>${esc(s)}</option>`).join("");
+  st.value = data.stages.includes(keep) ? keep : "";
+  $("weaponList").innerHTML = data.weapons.map(w => `<option value="${esc(w[1])}">${esc(w[0])}</option>`).join("");
+}
+function renderForm() {
+  $("ruleBtns").innerHTML = RULES.map(r => {
+    const on = form.rule === r.name;
+    return `<button class="tb rule" data-rule="${esc(r.name)}" aria-pressed="${on}" style="${on ? `background:${r.color};border-color:${r.color}` : `border-color:${r.color}55`}">${esc(r.name)}</button>`;
+  }).join("");
+  for (const b of $("ruleBtns").children) b.onclick = () => { form.rule = b.dataset.rule; data.form.rule = form.rule; saveLocal(); renderForm(); renderInputSide(); };
+  $("bWin").setAttribute("aria-pressed", form.result === "勝ち");
+  $("bLose").setAttribute("aria-pressed", form.result === "負け");
+  $("bKO").setAttribute("aria-pressed", form.ko);
+  $("bCB").setAttribute("aria-pressed", form.cb);
+  $("bAcc").setAttribute("aria-pressed", form.acc);
+  renderXpdBtns();
+  $("goldBtns").innerHTML = AWARDS.map(([a]) => `<button class="tb gold small" data-a="${esc(a)}" aria-pressed="${form.gold.includes(a)}">${esc(a)}</button>`).join("");
+  for (const b of $("goldBtns").children) b.onclick = () => toggleGold(b.dataset.a);
+  $("reflBtns").innerHTML = REFL_GROUPS.map(([lab, list]) => `<div class="glab">${esc(lab)}</div><div class="btns g3">` +
+    list.map(r => `<button class="tb refl small" data-r="${esc(r)}" aria-pressed="${form.refl.has(r)}">${esc(r)}</button>`).join("") + `</div>`).join("");
+  for (const b of $("reflBtns").querySelectorAll("button")) b.onclick = () => { form.refl.has(b.dataset.r) ? form.refl.delete(b.dataset.r) : form.refl.add(b.dataset.r); renderForm(); };
+  $("goodBtns").innerHTML = GOODS.map(r => `<button class="tb good small" data-g="${esc(r)}" aria-pressed="${form.good.has(r)}">${esc(r)}</button>`).join("");
+  for (const b of $("goodBtns").children) b.onclick = () => { form.good.has(b.dataset.g) ? form.good.delete(b.dataset.g) : form.good.add(b.dataset.g); renderForm(); };
+  const w = $("fWeapon").value.trim();
+  $("weaponHint").textContent = w && !data.weapons.some(x => x[1] === w) ? "リストにない武器名です (そのまま登録できます)" : "";
+}
+/* XP増減のボタン. 押すと自由枠にその値が入り, 同じボタンをもう一度押すと消える */
+const XPD_STEPS = [-75, -50, -25, 25, 50, 75];
+function renderXpdBtns() {
+  const cur = numOrNull($("fXpd").value);
+  $("xpdBtns").innerHTML = XPD_STEPS.map(v => `<button class="tb small ${v < 0 ? "xpn" : "xpp"}" data-v="${v}" aria-pressed="${cur === v}">${v > 0 ? "+" : ""}${v}</button>`).join("");
+  for (const b of $("xpdBtns").children) b.onclick = () => { const v = +b.dataset.v; $("fXpd").value = numOrNull($("fXpd").value) === v ? "" : String(v); renderXpdBtns(); };
+}
+function toggleGold(a) {
+  const i = form.gold.indexOf(a);
+  if (i >= 0) { form.gold.splice(i, 1); setStatus(""); }
+  else if (form.gold.length >= 3) { setStatus("金表彰は3つまでです. 外すときは, 選んだボタンをもう一度押します.", "warn"); }
+  else {
+    form.gold.push(a);
+    const rules = (AWARDS.find(x => x[0] === a) || [a, ""])[1];
+    setStatus(rules && form.rule && !rules.split(",").includes(form.rule) ? "このルールでは通常出ない金表彰です. 間違いなら, もう一度押して外してください." : "", "warn");
+  }
+  renderForm();
+}
+function renderInputSide() {
+  const now = new Date();
+  $("iNow").textContent = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${p2(now.getMinutes())}`;
+  const cur = seasonOf(now);
+  $("iSeason").textContent = cur;
+  const r = form.rule;
+  $("iXpLabel").textContent = r ? `現在のXP (${r})` : "現在のXP";
+  if (!r) $("iXp").textContent = "ルールを選ぶと表示";
+  else { const xs = D.filter(x => x.g.rule === r && x.xp !== null); $("iXp").textContent = xs.length ? f1(xs[xs.length - 1].xp) : "まだ記録なし"; }
+  $("iSeasonLabel").textContent = r ? `今季の ${r}` : "このルールの今季";
+  if (!r) $("iSeasonWL").textContent = "-";
+  else { const s = stats(D.filter(x => x.g.rule === r && x.season === cur)); $("iSeasonWL").textContent = `${s.w}勝 ${s.l}敗` + (s.n ? `  (${pct(s.wr)})` : ""); }
+  const t = stats(D.filter(x => x.day === dayKey(now)));
+  $("iTodayWL").textContent = `${t.w}勝 ${t.l}敗`;
+  const rec = D.slice(-5).reverse();
+  $("recentTable").innerHTML = `<thead><tr><th class="sl">日時</th><th class="sl">ルール</th><th class="sl">ステージ</th><th class="sl">勝敗</th><th class="sl">K-D</th><th class="sl">XP</th></tr></thead><tbody>` +
+    (rec.length ? rec.map(x => `<tr><td class="nw">${fmtMD(x.d)}</td><td class="nw" style="color:${(ruleOf(x.g.rule) || {}).color || "inherit"};font-weight:700">${esc((ruleOf(x.g.rule) || {}).short || x.g.rule)}</td><td class="st" title="${esc(x.g.stage)}">${esc(x.g.stage)}</td>` +
+      `<td class="c res ${x.g.result === "勝ち" ? "win" : "lose"}">${esc(x.g.result)}${x.g.ko ? '<span class="mk">KO</span>' : ""}${x.g.comeback ? '<span class="mk">逆転</span>' : ""}${x.g.accident ? '<span class="mk acc">事故</span>' : ""}</td>` +
+      `<td class="c">${x.g.kill ?? ""}-${x.g.death ?? ""}</td><td class="r">${f1(x.xp)}</td></tr>`).join("") : `<tr><td colspan="6" class="empty">まだ記録がありません</td></tr>`) + "</tbody>";
+}
+
+/* ============================================================ 入力の操作 */
+function readForm() {
+  const kill = numOrNull($("fKill").value), death = numOrNull($("fDeath").value);
+  const xpd = numOrNull($("fXpd").value), xpabs = numOrNull($("fXpabs").value);
+  return { stage: $("fStage").value, weapon: $("fWeapon").value.trim(), kill, death, xpd, xpabs, note: $("fNote").value.trim() };
+}
+function validate(v) {
+  if (!form.rule) return "ルールを選んでください.";
+  if (!v.stage) return "ステージを選んでください.";
+  if (!v.weapon) return "武器を入れてください.";
+  if (!form.result) return "勝ち負けのボタンを押してください.";
+  for (const [k, lab] of [["kill", "キル数"], ["death", "デス数"]]) {
+    const x = v[k];
+    if (x !== null && !(Number.isInteger(x) && x >= 0 && x <= 99)) return `${lab}は 0〜99 の整数で入れてください.`;
+  }
+  if (v.xpd !== null && !(isNum(v.xpd) && Math.abs(v.xpd) <= 500)) return "XP増減は -500〜500 の数値で入れてください.";
+  if (v.xpabs !== null && !(isNum(v.xpabs) && v.xpabs >= 0 && v.xpabs <= 5000)) return "試合前のXPは 0〜5000 の数値で入れてください.";
+  return "";
+}
+function clearEntry() {
+  form.stage = ""; form.result = ""; form.ko = false; form.cb = false; form.acc = false; form.gold = []; form.refl = new Set(); form.good = new Set();
+  for (const id of ["fKill", "fDeath", "fXpd", "fXpabs", "fNote"]) $(id).value = "";
+  $("fStage").value = "";
+  renderForm();
+}
+function register() {
+  const v = readForm();
+  const err = validate(v);
+  if (err) { setStatus(err, "err"); return; }
+  const now = new Date();
+  const g = { dt: isoLocal(now), rule: form.rule, stage: v.stage, weapon: v.weapon, result: form.result,
+              kill: v.kill, death: v.death, gold: form.gold.slice(), xpd: v.xpd, xpabs: v.xpabs,
+              refl: REFLECTS.filter(r => form.refl.has(r)), good: GOODS.filter(r => form.good.has(r)), note: v.note,
+              ko: form.ko, comeback: form.cb, accident: form.acc };
+  data.games.push(g);
+  data.form = { rule: form.rule, weapon: v.weapon };
+  persist();
+  clearEntry();
+  renderInputSide();
+  setStatus(`登録しました  ${fmtMD(now)}  ${g.rule}  ${g.result}${g.accident ? "  (事故)" : ""}`, "ok");
+  $("fStage").focus();
+}
+async function undoLast() {
+  if (!data.games.length) { setStatus("取り消す登録がありません.", "err"); return; }
+  const x = D[D.length - 1];
+  const info = `${fmtMD(x.d)}  ${x.g.rule}  ${x.g.stage}  ${x.g.result}`;
+  if (await choose("直前の登録を取り消す", `直前の登録を取り消しますか?\n${info}`, ["取り消す", "やめる"]) !== 0) return;
+  data.games.splice(x.i, 1);
+  persist();
+  renderInputSide();
+  setStatus(`取り消しました  ${info}`, "ok");
+}
+
+/* ============================================================ 記録の一覧 */
+const logF = { rule: "", season: ALL, stage: "", weapon: "", result: "", refl: "", good: "", order: "new", limit: 200 };
+function renderLog() {
+  const used = [...new Set(D.map(x => x.g.weapon).filter(w => w))];
+  const sel = (id, label, opts, cur) => `<label>${label}<select id="${id}">${opts.map(o => `<option value="${esc(o[0])}"${o[0] === cur ? " selected" : ""}>${esc(o[1])}</option>`).join("")}</select></label>`;
+  $("logFilters").innerHTML =
+    sel("lfRule", "ルール", [["", "すべて"], ...RULE_NAMES.map(r => [r, r])], logF.rule) +
+    sel("lfSeason", "シーズン", seasons().map(s => [s, s]), logF.season) +
+    sel("lfStage", "ステージ", [["", "すべて"], ...data.stages.map(s => [s, s])], logF.stage) +
+    sel("lfWeapon", "武器", [["", "すべて"], ...used.map(s => [s, s])], logF.weapon) +
+    sel("lfResult", "勝ち負け", [["", "すべて"], ["勝ち", "勝ち"], ["負け", "負け"], ["KO", "ノックアウト"], ["逆転負け", "逆転負け"], ["事故", "事故"], ["事故以外", "事故以外"]], logF.result) +
+    sel("lfRefl", "反省", [["", "すべて"], ...REFLECTS.map(s => [s, s]), ...LEGACY.filter(s => D.some(x => x.g.refl.includes(s))).map(s => [s, s + " (旧)"])], logF.refl) +
+    sel("lfGood", "良かった点", [["", "すべて"], ...GOODS.map(s => [s, s])], logF.good) +
+    sel("lfOrder", "並び", [["new", "新しい順"], ["old", "古い順"]], logF.order);
+  for (const [id, key] of [["lfRule", "rule"], ["lfSeason", "season"], ["lfStage", "stage"], ["lfWeapon", "weapon"], ["lfResult", "result"], ["lfRefl", "refl"], ["lfGood", "good"], ["lfOrder", "order"]])
+    $(id).onchange = e => { logF[key] = e.target.value; logF.limit = 200; renderLog(); };
+  let rows = D.filter(x => (!logF.rule || x.g.rule === logF.rule) && inSel(logF.season)(x) && (!logF.stage || x.g.stage === logF.stage) &&
+    (!logF.weapon || x.g.weapon === logF.weapon) && (!logF.refl || x.g.refl.includes(logF.refl)) && (!logF.good || x.g.good.includes(logF.good)) &&
+    (!logF.result || (logF.result === "KO" ? x.g.ko : logF.result === "逆転負け" ? x.g.comeback : logF.result === "事故" ? x.g.accident :
+      logF.result === "事故以外" ? !x.g.accident : x.g.result === logF.result)));
+  const s = stats(rows);
+  const cells = [["試合数", s.n], ["勝-負", `${s.w}-${s.l}`], ["勝率", pct(s.wr) || "-"], ["平均キル", f1(s.avgK) || "-"], ["平均デス", f1(s.avgD) || "-"],
+    ["K/D", f2(s.kd) || "-"], ["金表彰/試合", f2(s.gpg) || "-"], ["ノックアウト勝ち-負け", `${s.kow}-${s.kol}`], ["逆転負け", s.cb]];
+  if (logF.rule) {
+    const all = D.filter(x => x.g.rule === logF.rule && x.xp !== null);
+    const xs = rows.filter(x => x.xp !== null).map(x => x.xp);
+    cells.splice(2, 0, ["現在XP", all.length ? f1(all[all.length - 1].xp) : "-"], ["最高XP", xs.length ? f1(Math.max(...xs)) : "-"]);
+  }
+  $("logStrip").innerHTML = cells.map(c => `<div><div class="k">${c[0]}</div><div class="v">${c[1]}</div></div>`).join("");
+  $("logInfo").textContent = logF.rule ? "現在XPはそのルールの最新の記録, それ以外は表示中の試合で計算しています." : "表示中の試合で計算しています.";
+  if (logF.order === "new") rows = rows.slice().reverse();
+  const shown = rows.slice(0, logF.limit);
+  const head = ["No.", "日時", "シーズン", "ルール", "ステージ", "武器", "勝敗", "キル", "デス", "K/D", "金表彰", "XP増減", "試合前XP", "XP", "反省", "良かった点", "その他"];
+  $("logTable").innerHTML = `<thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>` + (shown.length ? shown.map(x => {
+    const g = x.g, r = ruleOf(g.rule);
+    return `<tr><td class="nw">${x.no} <button class="linkbtn" data-edit="${x.i}">直す</button></td><td class="nw">${fmtDT(x.d)}</td><td class="c">${x.season}</td>` +
+      `<td class="nw rulename" style="color:${r ? r.color : "inherit"}">${esc(g.rule)}</td><td class="nw2">${esc(g.stage)}</td><td class="nw2">${esc(g.weapon)}</td>` +
+      `<td class="c nw ${g.result === "勝ち" ? "win" : "lose"}">${esc(g.result)}${g.ko ? ' <span class="chip k">KO</span>' : ""}${g.comeback ? ' <span class="chip k">逆転</span>' : ""}${g.accident ? ' <span class="chip acc">事故</span>' : ""}</td>` +
+      `<td class="c">${g.kill ?? ""}</td><td class="c">${g.death ?? ""}</td><td class="c">${f2(x.kd)}</td>` +
+      `<td>${g.gold.map(a => `<span class="chip g">${esc(a)}</span>`).join("")}</td>` +
+      `<td class="r ${isNum(g.xpd) ? (g.xpd > 0 ? "pos" : g.xpd < 0 ? "neg" : "") : ""}">${signed(g.xpd)}</td><td class="r">${f1(g.xpabs)}</td><td class="r">${f1(x.xp)}</td>` +
+      `<td>${g.refl.map(a => `<span class="chip ${REFLECTS.includes(a) ? "r" : "old"}">${esc(a)}${REFLECTS.includes(a) ? "" : " (旧)"}</span>`).join("")}</td>` +
+      `<td>${g.good.map(a => `<span class="chip ok">${esc(a)}</span>`).join("")}</td><td>${esc(g.note)}</td></tr>`;
+  }).join("") : `<tr><td colspan="${head.length}" class="empty">該当する試合はありません</td></tr>`) + "</tbody>";
+  for (const b of document.querySelectorAll("[data-edit]")) b.onclick = () => openEdit(+b.dataset.edit);
+  $("logMore").innerHTML = rows.length > logF.limit ? `<span class="hint">${rows.length}試合のうち ${logF.limit}試合を表示</span><button class="secondary" id="logAll">すべて表示</button>` : "";
+  if ($("logAll")) $("logAll").onclick = () => { logF.limit = 1e9; renderLog(); };
+}
+
+/* ============================================================ 記録を直す */
+let editIndex = -1;
+function openEdit(i) {
+  editIndex = i;
+  const g = data.games[i];
+  const opt = (list, cur) => list.map(v => `<option${v === cur ? " selected" : ""}>${esc(v)}</option>`).join("");
+  const goldSel = k => `<select id="eGold${k}"><option value="">なし</option>${opt(AWARDS.map(a => a[0]), g.gold[k] || "")}</select>`;
+  $("editTitle").textContent = `記録を直す (No. ${i + 1})`;
+  $("editGrid").innerHTML =
+    `<span>日時</span><input type="datetime-local" step="1" id="eDt" value="${esc(g.dt)}">` +
+    `<span>ルール</span><select id="eRule">${opt(RULE_NAMES, g.rule)}</select>` +
+    `<span>ステージ</span><select id="eStage">${opt(data.stages.includes(g.stage) ? data.stages : [...data.stages, g.stage], g.stage)}</select>` +
+    `<span>武器</span><input type="text" id="eWeapon" list="weaponList" value="${esc(g.weapon)}">` +
+    `<span>勝ち負け</span><div class="checks"><select id="eResult">${opt(["勝ち", "負け"], g.result)}</select><label><input type="checkbox" id="eKO"${g.ko ? " checked" : ""}> ノックアウト</label><label><input type="checkbox" id="eCB"${g.comeback ? " checked" : ""}> 逆転負け</label><label><input type="checkbox" id="eAcc"${g.accident ? " checked" : ""}> 事故</label></div>` +
+    `<span>キル数 / デス数</span><div class="checks"><input type="number" id="eKill" min="0" max="99" value="${g.kill ?? ""}"><input type="number" id="eDeath" min="0" max="99" value="${g.death ?? ""}"></div>` +
+    `<span>金表彰</span><div class="checks">${goldSel(0)}${goldSel(1)}${goldSel(2)}</div>` +
+    `<span>XP増減 / 試合前XP</span><div class="checks"><input type="number" step="0.1" id="eXpd" value="${g.xpd ?? ""}"><input type="number" step="0.1" id="eXpabs" value="${g.xpabs ?? ""}"></div>` +
+    `<span>反省</span><div class="checks">${ALL_REFL.map((r, k) => (k < REFLECTS.length || g.refl.includes(r)) ?
+      `<label><input type="checkbox" id="eRefl${k}"${g.refl.includes(r) ? " checked" : ""}> ${esc(r)}${k < REFLECTS.length ? "" : " (旧)"}</label>` : "").join("")}</div>` +
+    `<span>良かった点</span><div class="checks">${GOODS.map((r, k) => `<label><input type="checkbox" id="eGood${k}"${g.good.includes(r) ? " checked" : ""}> ${esc(r)}</label>`).join("")}</div>` +
+    `<span>その他</span><textarea id="eNote">${esc(g.note)}</textarea>`;
+  $("editDlg").showModal();
+}
+function saveEdit() {
+  const g = data.games[editIndex];
+  const dt = $("eDt").value;
+  const v = { stage: $("eStage").value, weapon: $("eWeapon").value.trim(), kill: numOrNull($("eKill").value), death: numOrNull($("eDeath").value),
+              xpd: numOrNull($("eXpd").value), xpabs: numOrNull($("eXpabs").value) };
+  const saveRule = form.rule, saveRes = form.result;
+  form.rule = $("eRule").value; form.result = $("eResult").value;
+  const err = !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(dt) ? "日時を入れてください." : validate(v);
+  form.rule = saveRule; form.result = saveRes;
+  if (err) { alert(err); return; }
+  const gold = [0, 1, 2].map(k => $("eGold" + k).value).filter(x => x);
+  Object.assign(g, { dt: dt.length === 16 ? dt + ":00" : dt, rule: $("eRule").value, stage: v.stage, weapon: v.weapon, result: $("eResult").value,
+                     ko: $("eKO").checked, comeback: $("eCB").checked, kill: v.kill, death: v.death, gold: [...new Set(gold)],
+                     xpd: v.xpd, xpabs: v.xpabs, refl: [...ALL_REFL.filter((r, k) => $("eRefl" + k) && $("eRefl" + k).checked), ...g.refl.filter(r => !ALL_REFL.includes(r))],
+                     good: GOODS.filter((r, k) => $("eGood" + k).checked), accident: $("eAcc").checked, note: $("eNote").value.trim() });
+  $("editDlg").close();
+  persist();
+  renderAll();
+}
+async function deleteEdit() {
+  const x = D[editIndex];
+  const info = `No. ${x.no}  ${fmtMD(x.d)}  ${x.g.rule}  ${x.g.stage}  ${x.g.result}`;
+  $("editDlg").close();
+  if (await choose("記録を削除", `この記録を削除しますか?\n${info}`, ["削除する", "やめる"]) !== 0) { $("editDlg").showModal(); return; }
+  data.games.splice(editIndex, 1);
+  persist();
+  renderAll();
+}
+
+/* ============================================================ 集計 */
+function chartSVG(rule, sel) {
+  const r = ruleOf(rule), cp = chartPoints(rule, sel), pts = cp.points;
+  if (!pts.length) return `<div class="empty">この期間のXPの記録はありません</div>`;
+  const W = 560, H = 270, L = 52, R = 16, T = 12, B = 44;
+  const ys = pts.map(p => p.xp);
+  const lo = XP_AXIS_MIN === null ? Math.max(0, Math.floor((Math.min(...ys) - XP_AXIS_STEP / 2) / XP_AXIS_STEP) * XP_AXIS_STEP)
+                                    : Math.min(XP_AXIS_MIN, Math.floor(Math.min(...ys) / XP_AXIS_STEP) * XP_AXIS_STEP);
+  let hi = Math.ceil(Math.max(...ys) / XP_AXIS_STEP) * XP_AXIS_STEP;
+  if (hi - Math.max(...ys) < XP_AXIS_STEP / 5) hi += XP_AXIS_STEP;
+  if (hi <= lo) hi = lo + XP_AXIS_STEP;
+  const n = pts.length, k0 = pts[0].k;
+  const X = j => n === 1 ? L + (W - L - R) / 2 : L + (W - L - R) * j / (n - 1);
+  const Y = v => T + (H - T - B) * (hi - v) / (hi - lo);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(rule)} XPの推移">`;
+  const grid = XP_AXIS_MIN === null && (hi - lo) / XP_AXIS_STEP > 16 ? XP_AXIS_STEP * 2 : XP_AXIS_STEP;   // 自動のときは線が混みすぎないように
+  for (let v = lo; v <= hi + 1e-9; v += grid) {
+    s += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#E5E7EB"/><text x="${L - 6}" y="${Y(v) + 4}" font-size="10" text-anchor="end" fill="#4B5563">${v}</text>`;
+  }
+  const step = Math.max(1, Math.ceil(n / 12));
+  for (let j = 0; j < n; j += step) s += `<text x="${X(j)}" y="${H - B + 16}" font-size="10" text-anchor="middle" fill="#4B5563">${k0 + j}</text>`;
+  s += `<line x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}" stroke="#111827"/><line x1="${L}" x2="${L}" y1="${T}" y2="${H - B}" stroke="#111827"/>`;
+  s += `<text x="${(L + W - R) / 2}" y="${H - 8}" font-size="10" text-anchor="middle" fill="#4B5563">XPが変わった回数 (0 は期間の最初のXP)</text>`;
+  s += `<polyline fill="none" stroke="${r.color}" stroke-width="2" points="${pts.map((p, j) => `${X(j)},${Y(p.xp)}`).join(" ")}"/>`;
+  s += pts.map((p, j) => `<circle cx="${X(j)}" cy="${Y(p.xp)}" r="3.5" fill="${r.color}"><title>${p.k}回目  ${f1(p.xp)}  (${fmtMD(p.x.d)})</title></circle>`).join("");
+  return s + "</svg>";
+}
+function renderSummary() {
+  const sel0 = $("sumSeason").value || ALL;
+  const ss = seasons();
+  const sel = ss.includes(sel0) ? sel0 : ALL;
+  $("sumSeason").innerHTML = ss.map(s => `<option${s === sel ? " selected" : ""}>${s}</option>`).join("");
+  $("sumSeason").onchange = renderSummary;
+  $("sumExAcc").checked = excludeAccident;
+  $("sumExAcc").onchange = e => { excludeAccident = e.target.checked; renderSummary(); };
+  const nAcc = D.filter(x => inSel(sel)(x) && x.g.accident).length;
+  $("sumAccInfo").textContent = nAcc ? `この期間の事故の試合 ${nAcc}試合 (XPのグラフと現在XPには含めています)` : "";
+  const rt = ruleTable(sel);
+  const ruleHead = (first, extra = []) => `<th>${first}</th>` + extra.map(e => `<th>${e}</th>`).join("") + RULES.map(r => `<th style="background:${r.color}">${r.name}</th>`).join("");
+  let h = `<div class="card"><h2>ルール別</h2><div class="tablewrap"><table id="tRule"><thead><tr><th>ルール</th><th>試合数</th><th>勝ち</th><th>負け</th><th>勝率</th><th>平均キル</th><th>平均デス</th><th>K/D</th><th>金表彰/試合</th><th>現在XP</th><th>最高XP</th></tr></thead><tbody>` +
+    rt.map((x, i) => `<tr${i === 4 ? ' style="font-weight:700;background:#F1F3F6"' : ""}><td class="rulename" style="color:${i < 4 ? RULES[i].color : "inherit"}">${x.rule}</td><td class="c">${x.n}</td><td class="c">${x.w}</td><td class="c">${x.l}</td><td class="c">${pct(x.wr)}</td><td class="c">${f1(x.avgK)}</td><td class="c">${f1(x.avgD)}</td><td class="c">${f2(x.kd)}</td><td class="c">${f2(x.gpg)}</td><td class="c">${f1(x.cur)}</td><td class="c">${f1(x.max)}</td></tr>`).join("") +
+    `</tbody></table></div><p class="hint">現在XP・最高XPは選んだシーズン内の記録です. K/Dはキル合計÷デス合計, 金表彰/試合は1試合あたりの金表彰の数です.</p></div>`;
+  h += `<div class="card"><h2>XPの推移 (XPが変わった時だけ. 選んだシーズンの直近${NPTS}回)</h2><div class="charts">` +
+    RULES.map(r => `<div class="chart" data-rule="${r.name}"><h3 style="color:${r.color}">${r.name}</h3>${chartSVG(r.name, sel)}</div>`).join("") + `</div></div>`;
+  const dt = deathTable(sel);
+  const drow = (x, bold) => `<tr${bold ? ' style="font-weight:700;background:#F1F3F6"' : ""}><td>${x.label}</td><td class="c">${x.all.n}</td><td class="c">${x.all.w}-${x.all.l}</td>` +
+    `<td class="c" style="${rateBg(x.all.wr)}">${pct(x.all.wr)}</td><td class="c">${f1(x.all.avgK)}</td><td class="c">${f2(x.all.kd)}</td>` +
+    x.per.map(p => `<td class="c">${p.n}</td><td class="c" style="${rateBg(p.wr)}">${pct(p.wr)}</td>`).join("") + `</tr>`;
+  h += `<div class="card"><h2>デス別の勝率</h2><div class="tablewrap"><table id="tDeath"><thead><tr><th rowspan="2">デス</th><th colspan="5">全体</th>` +
+    RULES.map(r => `<th colspan="2" style="background:${r.color}">${r.name}</th>`).join("") + `</tr><tr><th class="sl">試合</th><th class="sl">勝-負</th><th class="sl">勝率</th><th class="sl">平均キル</th><th class="sl">K/D</th>` +
+    RULES.map(() => `<th class="sl">試合</th><th class="sl">勝率</th>`).join("") + `</tr></thead><tbody>` +
+    dt.rows.map(x => drow(x, false)).join("") + dt.sum.map(x => drow(x, true)).join("") +
+    `</tbody></table></div><p class="hint">デス数を入れていない試合 (${dt.missing}試合) は数えていません. 勝率の色は, 赤いほど低く, 青いほど高い.</p></div>`;
+  const days = dayTable(sel), dmax = Math.max(1, ...days.map(x => x.all.n));
+  h += `<div class="card"><h2>日ごと</h2><div class="tablewrap"><table id="tDay"><thead><tr><th>日付</th><th>試合数</th><th>勝-負</th><th>勝率</th><th>K/D</th><th>平均デス</th><th>XP増減</th>` +
+    RULES.map(r => `<th style="background:${r.color}">${r.short}</th>`).join("") + `</tr></thead><tbody>` +
+    (days.length ? days.map(x => `<tr><td class="nw">${x.d.getMonth() + 1}/${x.d.getDate()} (${WD[x.d.getDay()]})</td>` +
+      `<td class="nw"><span style="display:inline-block;width:28px;text-align:right">${x.all.n}</span> <span style="display:inline-block;vertical-align:middle;height:10px;border-radius:3px;background:#5B6678;width:${Math.round(140 * x.all.n / dmax)}px"></span></td>` +
+      `<td class="c">${x.all.w}-${x.all.l}</td><td class="c" style="${rateBg(x.all.wr)}">${pct(x.all.wr)}</td><td class="c">${f2(x.all.kd)}</td><td class="c">${f1(x.all.avgD)}</td>` +
+      `<td class="c ${isNum(x.xpd) ? (x.xpd > 0 ? "pos" : x.xpd < 0 ? "neg" : "") : ""}">${signed(x.xpd)}</td>` +
+      x.per.map(v => `<td class="c">${v || ""}</td>`).join("") + `</tr>`).join("") : `<tr><td colspan="${7 + RULES.length}" class="empty">この期間の試合はありません</td></tr>`) +
+    `</tbody></table></div><p class="hint">XP増減は, その日に入れた増減の合計です (試合前のXPで直した分は含みません).</p></div>`;
+  h += `<div class="card"><h2>ノックアウトと逆転負け</h2><div class="tablewrap"><table id="tKO"><thead><tr>${ruleHead("", ["全ルール"])}</tr></thead><tbody>` +
+    [["ノックアウト勝ち", "kow"], ["ノックアウト負け", "kol"], ["逆転負け", "cb"]].map(([lab, key]) =>
+      `<tr><td>${lab}</td><td class="c" style="font-weight:700">${rt[4][key]}</td>${rt.slice(0, 4).map(x => `<td class="c">${x[key]}</td>`).join("")}</tr>`).join("") +
+    `</tbody></table></div>${DIST ? "" : '<p class="hint">ノックアウトと逆転負けは 2026/10/17 から記録しています.</p>'}</div>`;
+  const brk = (title, id, rows) => `<div class="card"><h2>${title}</h2><div class="tablewrap"><table id="${id}"><thead><tr><th rowspan="2">${id === "tStage" ? "ステージ" : "武器"}</th><th colspan="4">全体</th>` +
+    RULES.map(r => `<th colspan="2" style="background:${r.color}">${r.name}</th>`).join("") + `</tr><tr><th class="sl">試合</th><th class="sl">勝率</th><th class="sl">K/D</th><th class="sl">金/試合</th>` +
+    RULES.map(() => `<th class="sl">試合</th><th class="sl">勝率</th>`).join("") + `</tr></thead><tbody>` +
+    rows.map(b => `<tr><td>${esc(b.name)}</td><td class="c">${b.all.n}</td><td class="c">${b.all.n ? pct(b.all.wr) : ""}</td><td class="c">${b.all.n ? f2(b.all.kd) : ""}</td><td class="c">${b.all.n ? f2(b.all.gpg) : ""}</td>` +
+      b.per.map(p => `<td class="c">${p.n}</td><td class="c">${p.n ? pct(p.wr) : ""}</td>`).join("") + `</tr>`).join("") + `</tbody></table></div></div>`;
+  h += brk("ステージ別", "tStage", breakdown(sel, "stage", data.stages));
+  h += brk("武器別 (使用回数の多い順に上位15)", "tWeapon", breakdown(sel, "weapon", weaponTop(sel)));
+  const items = (title, id, first, rows, note) => `<div class="card"><h2>${title}</h2><div class="tablewrap"><table id="${id}"><thead><tr>${ruleHead(first, ["合計", id === "tGold" ? "1試合あたり" : "割合"])}</tr></thead><tbody>` +
+    rows.map(x => `<tr><td>${esc(x.name)}</td><td class="c" style="font-weight:700">${x.tot}</td><td class="c">${id === "tGold" ? f2(x.rate) : pct(x.rate)}</td>${x.per.map(v => `<td class="c">${v}</td>`).join("")}</tr>`).join("") +
+    `</tbody></table></div>${note ? `<p class="hint">${note}</p>` : ""}</div>`;
+  h += items("金表彰 (選んだシーズンに取った回数)", "tGold", "金表彰", itemTable(sel, AWARDS.map(a => a[0]), (g, n) => g.gold.includes(n)));
+  const legacyUsed = LEGACY.filter(r => D.some(x => inSel(sel)(x) && x.g.refl.includes(r)));
+  const reflRows = itemTable(sel, [...REFLECTS, ...legacyUsed], (g, n) => g.refl.includes(n)).map(x => LEGACY.includes(x.name) ? Object.assign(x, { name: x.name + " (旧項目)" }) : x);
+  h += items("反省 (選んだシーズンに選んだ試合の数)", "tRefl", "反省", reflRows, "割合は, 選んだシーズンの試合数 (全ルール) のうち, その項目を選んだ試合の割合です." +
+    (legacyUsed.length ? (DIST ? " (旧項目) は以前の版のボタンの項目で, 新しい項目とは数え方が違うので分けています." : " (旧項目) は 2026/10/20 までのボタンで, 新しい項目とは数え方が違うので分けています.") : ""));
+  h += items("良かった点 (選んだシーズンに選んだ試合の数)", "tGood", "良かった点", itemTable(sel, GOODS, (g, n) => g.good.includes(n)), DIST ? "" : "良かった点は 2026/10/20 から記録しています.");
+  $("summaryBody").innerHTML = h;
+}
+
+/* ============================================================ 設定 */
+function renderSettings() {
+  renderSaveStatus();
+  const cats = [...new Set(data.weapons.map(w => w[0]))];
+  $("newWeaponCat").innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join("");
+  $("listInfo").textContent = `ステージ ${data.stages.length}種, 武器 ${data.weapons.length}種, 記録 ${data.games.length}試合.`;
+}
+function download(name, text, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function toCSV() {
+  const q = v => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const head = ["No.", "日時", "シーズン", "ルール", "ステージ", "武器", "勝ち負け", "ノックアウト", "逆転負け", "キル数", "デス数", "K/D",
+                "金表彰1", "金表彰2", "金表彰3", "XP増減", "試合前XP", "XP", ...REFLECTS, ...LEGACY.map(r => r + " (旧)"), ...GOODS.map(r => "良:" + r), "事故", "その他"];
+  const lines = [head.map(q).join(",")];
+  for (const x of D) {
+    const g = x.g;
+    lines.push([x.no, fmtDT(x.d), x.season, g.rule, g.stage, g.weapon, g.result, g.ko ? "○" : "", g.comeback ? "○" : "", g.kill ?? "", g.death ?? "",
+                isNum(x.kd) ? x.kd.toFixed(2) : "", g.gold[0] || "", g.gold[1] || "", g.gold[2] || "", g.xpd ?? "", g.xpabs ?? "",
+                isNum(x.xp) ? +x.xp.toFixed(1) : "", ...ALL_REFL.map(r => g.refl.includes(r) ? "○" : ""), ...GOODS.map(r => g.good.includes(r) ? "○" : ""),
+                g.accident ? "○" : "", g.note].map(q).join(","));
+  }
+  return "﻿" + lines.join("\r\n");
+}
+const stamp = () => { const d = new Date(); return `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}`; };
+
+/* ============================================================ 使い方 */
+function renderHelp() {
+  $("helpBody").innerHTML = `
+<h2>使い方</h2>
+${DIST ? `<h3>このアプリについて</h3>
+<p>スプラトゥーン3 の Xマッチの戦績を, 1試合ずつ記録して集計するためのアプリです. 無料で使えます. 個人が作った非公式のツールで, 任天堂とは関係ありません. ステージ・ブキ・表彰などの名前は任天堂の作品のものです.</p>
+<p>記録は, このパソコンのブラウザの中と, 自分で選んだ記録ファイルにだけ保存します. インターネットへは何も送りません.</p>
+<p>すべての機能が使えるのは, パソコンの Chrome と Edge です. Safari などでは記録ファイルへの自動保存が使えず, ブラウザの中にだけ保存されるので, 設定の「JSON に書き出す」で時々控えを取ってください. スマートフォンでの利用は考えていません.</p>
+<p>ステージとブキの一覧は 2026年10月時点のものです (ステージ ${DEF.stages.length}種, ブキ ${DEF.weapons.length}種). 新しく出たものは設定の「リスト」で足せます.</p>` : ""}
+<h3>入力</h3>
+<p>1. ルールのボタンを押し, ステージと武器を選びます. 武器は打ち始めると候補が出ます. ルールを選ぶと, 右に現在のXPと今季の勝敗が出ます.</p>
+<p>2. キル数とデス数を入れ, 勝ち負けのボタンを押します. ノックアウトで決着した試合は「ノックアウト」, リードしていたのに負けた試合は「逆転負け」も押します (逆転負けを押すと負けになります).</p>
+<p>3. 金表彰は取ったものを3つまで押します. 反省は「やられ方」と「立ち回り」から当てはまるものを, 良かった点も当てはまるものを, いくつでも押します. もう一度押すと外れます. 項目にないことは「その他」に書きます.</p>
+<p>回線落ちや放置などで勝ち負けに意味がない試合は「事故 (回線落ち・放置)」も押します. 事故の試合は, 集計の勝率などから初めは除かれます (XPは実際に動くので, XPのグラフと現在XPには含めます).</p>
+<p>4. XP増減は, バトル後のXPの増減を -75〜+75 のボタンで選びます (もう一度押すと外れます). ボタンにない値は右の自由枠に半角で入れます. 試合前のXPが分かるときは「試合前のXP」にも入れます. 試合後のXPは「試合前のXP + 増減」, 試合前のXPが空欄なら「同じルールの前の試合後のXP + 増減」です.</p>
+<p>5. 「登録」(⌘+Enter でも可) を押すと記録に加わり, ルールと武器を残して入力欄が空に戻ります. 間違えたら「直前の登録を取り消す」で消せます.</p>
+<h3>記録</h3>
+<p>ルール・シーズン・ステージ・武器・勝ち負け・反省で絞り込めます. 上の数字は表示中の試合の集計です. 各行の「直す」で, 日時も含めてすべての項目を修正・削除できます.</p>
+<h3>集計</h3>
+${DIST ? "" : `<p>2026/10/20 に反省のボタンを組み替えました. 言い換えただけの項目 (射程管理→射程負け, エイム→撃ち合い負け (エイム), キャラコン→撃ち合い負け (キャラコン), ルール関与をしていない→ルール関与が足りない, イカランプ無視→人数不利で前に出た) は過去の記録も新しい名前にしました. 敵位置の把握と状況確認不足は「旧項目」として残し, 集計でも分けて数えます.</p>`}
+<p>シーズンを選ぶと, ルール別・デス別・日ごと・ステージ別・武器別・金表彰・反省・良かった点・ノックアウトと逆転負けの表と, XPの推移グラフがそのシーズンだけの集計になります. グラフは期間の最初のXPと, XPが変わった試合のXPだけを順に結んだもので, ${XP_AXIS_MIN === null ? "縦軸は記録したXPに合わせて自動で決まります." : `縦軸は ${XP_AXIS_MIN} から ${XP_AXIS_STEP} ごとです (${XP_AXIS_MIN} 未満のXPがあるときだけ下に広げます).`} 点にマウスを乗せると日時が出ます.</p>
+<h3>保存</h3>
+<p>登録・修正・削除のたびに, Chrome の中と記録ファイル (スプラ3戦績データ.json) の両方へ自動で保存します. Chrome を起動し直したあとは, 上に出る帯の「保存を再開する」を1回押して, ファイルの編集を許可してください. 押すまでの登録も Chrome の中には残っていて, 再開したときにファイルへ書き込まれます.</p>
+<p>設定の「CSV に書き出す」で Excel でも開ける表に, 「JSON に書き出す」で記録の控えを作れます.</p>
+<h3>計算のきまり</h3>
+<p>K/D は, 各試合ではキル数÷デス数 (デスが0のときは1として計算), 集計ではキル合計÷デス合計です. シーズンは日付から判定し, 3/1, 6/1, 9/1, 12/1 で切り替わります (12〜2月は前年の冬).</p>`;
+}
+
+/* ============================================================ 起動 */
+function bind() {
+  for (const b of document.querySelectorAll("#tabs button")) b.onclick = () => showTab(b.dataset.tab);
+  $("bWin").onclick = () => { form.result = form.result === "勝ち" ? "" : "勝ち"; if (form.result === "勝ち") form.cb = false; renderForm(); };
+  $("bLose").onclick = () => { form.result = form.result === "負け" ? "" : "負け"; if (form.result !== "負け") form.cb = false; renderForm(); };
+  $("bKO").onclick = () => { form.ko = !form.ko; renderForm(); };
+  $("bCB").onclick = () => { form.cb = !form.cb; if (form.cb) form.result = "負け"; renderForm(); };
+  $("bAcc").onclick = () => { form.acc = !form.acc; renderForm(); };
+  $("fXpd").oninput = renderXpdBtns;
+  $("bRegister").onclick = register;
+  $("bClear").onclick = () => { clearEntry(); setStatus("入力欄を空にしました (ルールと武器は残しています).", "ok"); };
+  $("bUndo").onclick = undoLast;
+  $("fWeapon").oninput = () => { data.form.weapon = $("fWeapon").value.trim(); saveLocal(); renderForm(); };
+  document.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && currentTab() === "input" && !$("editDlg").open) { e.preventDefault(); register(); } });
+  $("eSave").onclick = saveEdit;
+  $("eCancel").onclick = () => $("editDlg").close();
+  $("eDelete").onclick = deleteEdit;
+  $("firstOpen").onclick = () => (fileHandle ? resumeFile() : openFile());
+  $("firstNew").onclick = async () => { data = emptyData(); persist(); renderAll(); if (fsSupported && await choose("記録ファイル", "記録を保存するファイルを作りますか?", ["作る", "あとで"]) === 0) newFile(); };
+  $("sOpen").onclick = openFile;
+  $("sNew").onclick = newFile;
+  $("sCsv").onclick = () => download(`スプラ3戦績_${stamp()}.csv`, toCSV(), "text/csv");
+  $("sJson").onclick = () => download(`スプラ3戦績データ_${stamp()}.json`, JSON.stringify(data, null, 1), "application/json");
+  $("sImport").onclick = () => $("importFile").click();
+  $("importFile").onchange = async e => {
+    const f = e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    try {
+      const d = normalize(JSON.parse(await f.text()));
+      if (await choose("JSON を読み込む", `「${f.name}」(${d.games.length}試合) で, いまの記録 (${data.games.length}試合) を置き換えますか?`, ["置き換える", "やめる"]) !== 0) return;
+      data = d; persist(); renderAll();
+    } catch (err) { alert("読み込めませんでした " + err.message); }
+  };
+  $("addStage").onclick = () => { const s = $("newStage").value.trim(); if (!s || data.stages.includes(s)) return; data.stages.push(s); $("newStage").value = ""; persist(); fillLists(); renderSettings(); };
+  $("addWeapon").onclick = () => { const w = $("newWeapon").value.trim(); if (!w || data.weapons.some(x => x[1] === w)) return; data.weapons.push([$("newWeaponCat").value, w]); $("newWeapon").value = ""; persist(); fillLists(); renderSettings(); };
+  window.addEventListener("storage", e => { if (e.key === LS_KEY && e.newValue) { data = normalize(JSON.parse(e.newValue)); renderAll(); } });
+  setInterval(() => { if (data && currentTab() === "input") renderInputSide(); }, 30000);
+}
+function distFirstScreen() {
+  $("firstIntro").textContent = "はじめて使うときは「新しく始める」を押してください. 記録を保存するファイルを作ると, 登録・修正のたびにそのファイルへ自動で保存されます (パソコンの Chrome と Edge). 前に使っていた記録ファイルがあるときは「記録ファイルを開く」で開けます.";
+  $("firstNew").textContent = "新しく始める";
+  $("firstNew").className = "primary"; $("firstOpen").className = "secondary";
+  $("firstBtns").prepend($("firstNew"));
+  $("firstUnofficial").hidden = false;
+}
+async function init() {
+  if (DIST) distFirstScreen();
+  bind();
+  renderHelp();
+  data = loadLocal();
+  if (fsSupported) {
+    try { fileHandle = await idbGet("file"); } catch (e) { fileHandle = null; }
+    if (fileHandle) {
+      const p = await fileHandle.queryPermission({ mode: "readwrite" });
+      if (p === "granted") {
+        try {
+          const fromFile = await readHandle(fileHandle);
+          if (!data) data = fromFile;
+          else if (!sameGames(data, fromFile)) data = await reconcile(data, fromFile, fileHandle.name);
+          fileState = "ok";
+        } catch (e) { fileState = "error"; fileError = String(e.message || e); }
+      } else fileState = "paused";
+    }
+  }
+  if (!data && fileHandle && fileState === "paused") {
+    $("firstNote").textContent = `前に使っていた記録ファイル「${fileHandle.name}」を開くには「記録ファイルを開く」を押してください.`;
+  }
+  if (!fsSupported && DIST) {
+    $("firstNote").textContent = "このブラウザでは記録ファイルへの自動保存が使えません. スマートフォン (iPhone, Android) には対応していないので, パソコンの Chrome か Edge で開いてください.";
+    $("firstNote").className = "first-warn";
+  } else if (!fsSupported) $("firstNote").textContent = "このブラウザではファイルの自動保存が使えません. Chrome で開いてください.";
+  syncFormFromData();
+  renderAll();
+  if (data && fileState === "ok") scheduleWrite();
+}
+init();
+</script>
+</body>
+</html>
